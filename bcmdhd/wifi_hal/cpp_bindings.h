@@ -248,7 +248,9 @@ protected:
     int mRefs;
 public:
     WifiCommand(const char *type, wifi_handle handle, wifi_request_id id)
-            : mType(type), mMsg(getHalInfo(handle)->nl80211_family_id), mId(id), mRefs(1)
+            : mType(type),
+              mMsg(getHalInfo(handle) ? getHalInfo(handle)->nl80211_family_id : 0),
+              mId(id), mRefs(1)
     {
         mIfaceInfo = NULL;
         mInfo = getHalInfo(handle);
@@ -256,8 +258,10 @@ public:
     }
 
     WifiCommand(const char *type, wifi_interface_handle iface, wifi_request_id id)
-            : mType(type), mMsg(getHalInfo(iface)->nl80211_family_id, getIfaceInfo(iface)->id),
-            mId(id), mRefs(1)
+            : mType(type),
+              mMsg(getHalInfo(iface) ? getHalInfo(iface)->nl80211_family_id : 0,
+                   getIfaceInfo(iface) ? getIfaceInfo(iface)->id : -1),
+              mId(id), mRefs(1)
     {
         mIfaceInfo = getIfaceInfo(iface);
         mInfo = getHalInfo(iface);

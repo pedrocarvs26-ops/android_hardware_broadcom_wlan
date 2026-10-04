@@ -276,6 +276,7 @@ wifi_error wifi_pre_initialize(void)
     if (socketpair(AF_UNIX, SOCK_STREAM, 0, halInfo->cleanup_socks) == -1) {
         ALOGE("Could not create cleanup sockets");
         free(halInfo);
+        halInfo = NULL;
         return WIFI_ERROR_UNKNOWN;
     }
 
@@ -283,6 +284,7 @@ wifi_error wifi_pre_initialize(void)
     if (cmd_sock == NULL) {
         ALOGE("Could not create handle");
         free(halInfo);
+        halInfo = NULL;
         return WIFI_ERROR_UNKNOWN;
     }
 
@@ -298,6 +300,7 @@ wifi_error wifi_pre_initialize(void)
         ALOGE("Could not create handle");
         nl_socket_free(cmd_sock);
         free(halInfo);
+        halInfo = NULL;
         return WIFI_ERROR_UNKNOWN;
     }
 
@@ -315,6 +318,7 @@ wifi_error wifi_pre_initialize(void)
         nl_socket_free(cmd_sock);
         nl_socket_free(event_sock);
         free(halInfo);
+        halInfo = NULL;
         return WIFI_ERROR_UNKNOWN;
     }
 
@@ -341,6 +345,7 @@ wifi_error wifi_pre_initialize(void)
         nl_socket_free(cmd_sock);
         nl_socket_free(event_sock);
         free(halInfo);
+        halInfo = NULL;
         return WIFI_ERROR_UNKNOWN;
     }
 
@@ -355,19 +360,24 @@ wifi_error wifi_pre_initialize(void)
         nl_socket_free(event_sock);
         pthread_mutex_destroy(&halInfo->cb_lock);
         free(halInfo);
+        halInfo = NULL;
         return WIFI_ERROR_NOT_AVAILABLE;
     }
 
     if ((wifi_add_membership(handle, "scan") < 0) ||
             (wifi_add_membership(handle, "mlme")  < 0) ||
-            (wifi_add_membership(handle, "regulatory") < 0) ||
-            (wifi_add_membership(handle, "vendor") < 0)) {
+            (wifi_add_membership(handle, "regulatory") < 0)) {
         ALOGE("Add membership failed");
         nl_socket_free(cmd_sock);
         nl_socket_free(event_sock);
         pthread_mutex_destroy(&halInfo->cb_lock);
         free(halInfo);
+        halInfo = NULL;
         return WIFI_ERROR_NOT_AVAILABLE;
+    }
+
+    if (wifi_add_membership(handle, "vendor") < 0) {
+        ALOGI("Vendor multicast group not supported by kernel, continuing");
     }
 
     ALOGI("Initialized Wifi HAL Successfully; vendor cmd = %d", NL80211_CMD_VENDOR);
@@ -442,8 +452,7 @@ wifi_error wifi_wait_for_driver_ready(void)
     do {
         if ((fd = fopen("/sys/class/net/wlan0", "r")) != NULL) {
             fclose(fd);
-            wifi_pre_initialize();
-            return WIFI_SUCCESS;
+            return wifi_pre_initialize();
         }
         usleep(POLL_DRIVER_DURATION_US);
     } while(--count > 0);
@@ -497,6 +506,7 @@ static void internal_cleaned_up_handler(wifi_handle handle)
     DestroyResponseLock();
     pthread_mutex_destroy(&info->cb_lock);
     free(info);
+    halInfo = NULL;
 
     ALOGI("Internal cleanup completed");
 }
@@ -1524,12 +1534,32 @@ wifi_error wifi_set_scanning_mac_oui(wifi_interface_handle handle, oui scan_oui)
 
 wifi_error wifi_set_nodfs_flag(wifi_interface_handle handle, u32 nodfs)
 {
+    if (!handle) {
+        ALOGE("wifi_set_nodfs_flag: invalid handle");
+        return WIFI_ERROR_INVALID_ARGS;
+    }
+    wifi_handle wifiHandle = getWifiHandle(handle);
+    hal_info *info = getHalInfo(wifiHandle);
+    if (!info || !info->cmd_sock) {
+        ALOGE("wifi_set_nodfs_flag: cmd_sock is null, skipping");
+        return WIFI_SUCCESS;
+    }
     SetNodfsCommand command(handle, nodfs);
     return (wifi_error) command.requestResponse();
 }
 
 wifi_error wifi_set_country_code(wifi_interface_handle handle, const char *country_code)
 {
+    if (!handle) {
+        ALOGE("wifi_set_country_code: invalid handle");
+        return WIFI_ERROR_INVALID_ARGS;
+    }
+    wifi_handle wifiHandle = getWifiHandle(handle);
+    hal_info *info = getHalInfo(wifiHandle);
+    if (!info || !info->cmd_sock) {
+        ALOGE("wifi_set_country_code: cmd_sock is null, skipping");
+        return WIFI_SUCCESS;
+    }
     SetCountryCodeCommand command(handle, country_code);
     return (wifi_error) command.requestResponse();
 }

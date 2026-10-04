@@ -46,6 +46,7 @@ interface_info *getIfaceInfo(wifi_interface_handle handle)
 
 wifi_handle getWifiHandle(wifi_interface_handle handle)
 {
+    if (!handle) return NULL;
     return getIfaceInfo(handle)->handle;
 }
 
@@ -56,6 +57,7 @@ hal_info *getHalInfo(wifi_handle handle)
 
 hal_info *getHalInfo(wifi_interface_handle handle)
 {
+    if (!handle) return NULL;
     return getHalInfo(getWifiHandle(handle));
 }
 
