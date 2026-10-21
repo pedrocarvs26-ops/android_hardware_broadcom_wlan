@@ -609,6 +609,10 @@ static int no_seq_check(struct nl_msg *msg, void *arg)
 }
 
 int WifiCommand::requestResponse() {
+    if (!mInfo || !mInfo->cmd_sock) {
+        ALOGE("WifiCommand::requestResponse: mInfo or cmd_sock is null!");
+        return -EINVAL;
+    }
     int err = create();                 /* create the message */
     if (err < 0) {
         return err;
@@ -618,6 +622,10 @@ int WifiCommand::requestResponse() {
 }
 
 int WifiCommand::requestResponse(WifiRequest& request) {
+    if (!mInfo || !mInfo->cmd_sock) {
+        ALOGE("WifiCommand::requestResponse: mInfo or cmd_sock is null!");
+        return -EINVAL;
+    }
     pthread_mutex_lock(&ResponseMutex);
     int err = 0;
 
@@ -641,6 +649,10 @@ int WifiCommand::requestResponse(WifiRequest& request) {
         int res = nl_recvmsgs(mInfo->cmd_sock, cb);
         if (res) {
             ALOGE("nl80211: %s->nl_recvmsgs failed: %d", __func__, res);
+            if (res < 0) {
+                err = res;
+                break;
+            }
         }
     }
 out:
